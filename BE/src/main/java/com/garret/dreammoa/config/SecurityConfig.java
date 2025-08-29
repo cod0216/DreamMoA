@@ -79,15 +79,10 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, ClientRegistrationRepository clientRegistrationRepository) throws Exception {
         http
-                // CORS 설정
-                // CSRF 비활성화
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                // Form 로그인 비활성화
                 .formLogin(AbstractHttpConfigurer::disable)
-                // Basic 인증도 비활성화
                 .httpBasic(AbstractHttpConfigurer::disable)
-                // 예외처리(인증 실패 시 401 반환)
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, authException) -> {
                             log.warn("🔴 [401 Unauthorized] 인증되지 않은 사용자 접근 - 요청 경로: {}", request.getRequestURI());
@@ -99,22 +94,18 @@ public class SecurityConfig {
                             response.sendError(HttpServletResponse.SC_FORBIDDEN, "Forbidden");
                         })
                 )
-                // 인증/인가 설정
                 .authorizeHttpRequests(auth -> auth
-                                // Swagger UI 경로 인증 없이 허용
                                 .requestMatchers(
-                                        "/v3/api-docs/**",  // OpenAPI 문서 JSON
-                                        "/swagger-ui/**",   // Swagger UI 리소스
-                                        "/swagger-ui.html", // Swagger UI 접속 페이지
-                                        "/webjars/**",      // Swagger가 사용하는 정적 리소스
+                                        "/v3/api-docs/**",
+                                        "/swagger-ui/**",
+                                        "/swagger-ui.html",
+                                        "/webjars/**",
                                         "/swagger-resources/**"
                                 ).permitAll()
                                 .requestMatchers("/stt-websocket").permitAll()
-                                // 특정 GET 요청 허용 (글 목록 조회만)
                                 .requestMatchers(HttpMethod.GET, "/boards").permitAll()
                                 .requestMatchers(HttpMethod.GET, "api/likes/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/challenges/tag-challenges", "/challenges/search", "/challenges/all-challenges").permitAll()
-                                //                        .requestMatchers("api/likes/**").authenticated()
                                 .requestMatchers("/random-determinations","/ending-soon",
                                         "/total-screen-time", "/login","/", "/error", "/refresh", "/top-viewed", "/openvidu/**", "/join","/email-find","/pw-find","/openvidu/**",
                                         "/send-verification-code", "/verify-email-code", "/check-email", "/check-nickname",
@@ -123,9 +114,7 @@ public class SecurityConfig {
                                 .permitAll()
                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                 .requestMatchers("/files/**").permitAll()
-//                                .requestMatchers("/admin/**").hasRole("ADMIN")
                                 .anyRequest().authenticated()
-                        //                        .anyRequest().permitAll()
                 )
                 // 구글로그인설정
                 // 구글로그인설정

@@ -49,7 +49,7 @@ public class JwtUtil {
                 "userId", String.valueOf(userId),
                 "name", name,
                 "nickname", nickname,
-                "role", role  // ✅ 역할 추가
+                "role", role
         );
 
         String token = Jwts.builder()
@@ -64,25 +64,28 @@ public class JwtUtil {
         return token;
     }
 
-    public String createRefreshToken(UserEntity user) {
+    public String createRefreshToken(Long userId, String email, String name, String nickname, String role) {
         Date now = new Date();
         Date validity = new Date(now.getTime() + REFRESH_TOKEN_EXPIRE_TIME);
 
+        Map<String, Object> claims = Map.of(
+                "userId", String.valueOf(userId),
+                "name", name,
+                "nickname", nickname,
+                "role", role
+        );
+
         String refreshToken = Jwts.builder()
-                .setSubject(user.getEmail())
+                .setClaims(claims)
+                .setSubject(email)
                 .setIssuedAt(now)
                 .setExpiration(validity)
-                .addClaims(Map.of(
-                        "userId", String.valueOf(user.getId()),
-                        "name", user.getName(),
-                        "nickname", user.getNickname(),
-                        "role", user.getRole().name()  // ✅ 역할 추가
-                ))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 
-        redisTemplate.opsForValue().set(user.getId().toString(), refreshToken, REFRESH_TOKEN_EXPIRE_TIME, TimeUnit.MILLISECONDS);
-        log.info("✅ [RT 발급 완료] UserID: {}, Name: {}, Nickname: {}, Role: {}", user.getId(), user.getName(), user.getNickname(), user.getRole().name());
+
+        redisTemplate.opsForValue().set(userId.toString(), refreshToken, REFRESH_TOKEN_EXPIRE_TIME, TimeUnit.MILLISECONDS);
+
         return refreshToken;
     }
 

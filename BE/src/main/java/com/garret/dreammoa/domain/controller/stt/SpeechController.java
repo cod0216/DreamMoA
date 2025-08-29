@@ -22,7 +22,6 @@ public class SpeechController {
 
     @PostMapping("/speech-to-text")
     public ResponseEntity<String> speechToText(@RequestParam("audioFile") MultipartFile audioFile) {
-        System.out.println("들어옴");
         try {
             String transcript = speechService.speechToText(audioFile);
             return ResponseEntity.ok(transcript);

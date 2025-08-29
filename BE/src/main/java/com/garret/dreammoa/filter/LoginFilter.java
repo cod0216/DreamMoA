@@ -79,7 +79,7 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
 
         // Access Token & Refresh Token 생성
         String accessToken = jwtUtil.createAccessToken(userId, email, name, nickname, role.name());
-        String refreshToken = jwtUtil.createRefreshToken(user);
+        String refreshToken = jwtUtil.createRefreshToken(userId, email, name, nickname, role.name());
 
         logger.info("🔑 [AccessToken 발급] {}", accessToken);
         logger.info("🔄 [RefreshToken 발급] {}", refreshToken);

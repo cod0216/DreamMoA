@@ -38,7 +38,6 @@ public class SpeechService {
             if (!results.isEmpty()) {
                 return results.get(0).getAlternatives(0).getTranscript();
             } else {
-                System.out.println("No transcription result found");
                 return "";
             }
         }
@@ -52,7 +51,6 @@ public class SpeechService {
         }
 
         byte[] audioBytes = audioFile.getBytes();
-        // 파일에 상관없이 이제 LINEAR16, 16kHz 포맷을 사용하여 인식합니다.
         RecognitionConfig recognitionConfig = RecognitionConfig.newBuilder()
                 .setEncoding(RecognitionConfig.AudioEncoding.LINEAR16)
                 .setSampleRateHertz(16000)
@@ -70,7 +68,67 @@ public class SpeechService {
                 .setLanguageCode("ko-KR")
                 .build();
 
-        return convertSpeech(audioBytes, config);
+        String str = convertSpeech(audioBytes, config);
+        if(str == null || str.isBlank()) return "";
+        return gptCorrect(str);
+    }
+
+    private String gptCorrect(String speechText) {
+        ObjectNode systemMsg = objectMapper.createObjectNode();
+        systemMsg.put("role", "system");
+        systemMsg.put("content",
+                "너는 한국어 받아쓰기 교정기다. 철자, 띄어쓰기, 조사, 숫자 표기, 고유명사 대문자, 문장부호를 자연스럽게 교정한다. " +
+                        "원문의 의미를 바꾸지 않는다. 설명이나 메타 텍스트를 절대 추가하지 말고, 교정된 문장만 출력한다.");
+
+        ObjectNode userMsg = objectMapper.createObjectNode();
+        userMsg.put("role", "user");
+        userMsg.put("content",
+                "다음 텍스트를 한국어 표준 맞춤법으로 자연스럽게 교정해줘. 결과는 교정된 문장만 한 줄로 반환해.\n\n" + speechText);
+
+        try {
+            ObjectNode requestBody = objectMapper.createObjectNode();
+            requestBody.put("model", "gpt-4o-mini");
+            requestBody.put("temperature", 0.0); // 교정은 결정적이게
+            ArrayNode messages = objectMapper.createArrayNode();
+            messages.add(systemMsg);
+            messages.add(userMsg);
+            requestBody.set("messages", messages);
+
+            String requestBodyString = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(requestBody);
+
+            RequestBody body = RequestBody.create(
+                    requestBodyString,
+                    MediaType.parse("application/json")
+            );
+
+            Request request = new Request.Builder()
+                    .url("https://api.openai.com/v1/chat/completions")
+                    .addHeader("Authorization", "Bearer " + openaiApiKey)
+                    .addHeader("Content-Type", "application/json")
+                    .post(body)
+                    .build();
+
+            try (Response response = client.newCall(request).execute()) {
+                String responseBody = response.body() != null ? response.body().string() : "";
+                if (!response.isSuccessful()) {
+                    System.out.println("OpenAI API error: " + responseBody);
+                    throw new IOException("Unexpected code " + response);
+                }
+                JsonNode responseJson = objectMapper.readTree(responseBody);
+                String content = responseJson
+                        .path("choices")
+                        .get(0)
+                        .path("message")
+                        .path("content")
+                        .asText()
+                        .trim();
+
+                return removeCodeBlock(content);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return speechText;
+        }
     }
 
     // 음성 인식된 텍스트를 요약하는 기능 (OpenAI API 호출)
@@ -128,12 +186,16 @@ public class SpeechService {
         }
     }
 
-    // 응답 내용에서 코드 블록을 제거하는 메소드
     private String removeCodeBlock(String content) {
-        Pattern pattern = Pattern.compile("```json\\n([\\s\\S]*?)\\n```");
-        Matcher matcher = pattern.matcher(content);
-        if (matcher.find()) {
-            return matcher.group(1).trim();
+        Pattern codeBlock = Pattern.compile("```[a-zA-Z]*\\n([\\s\\S]*?)\\n```");
+        Matcher codeMatcher = codeBlock.matcher(content);
+        if (codeMatcher.find()) {
+            content = codeMatcher.group(1).trim();
+        }
+        // 양끝 큰따옴표만 단독으로 감싸진 경우 제거
+        if ((content.startsWith("\"") && content.endsWith("\"")) ||
+                (content.startsWith("“") && content.endsWith("”"))) {
+            content = content.substring(1, content.length() - 1).trim();
         }
         return content;
     }

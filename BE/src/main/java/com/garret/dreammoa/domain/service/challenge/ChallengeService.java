@@ -64,22 +64,23 @@ public class ChallengeService {
 
         // 챌린지 엔터티 생성
         ChallengeEntity challenge = ChallengeEntity.builder()
-                .title(request.getTitle())
-                .description(request.getDescription())
-                .maxParticipants(request.getMaxParticipants())
-                .isPrivate(request.getIsPrivate())
-                .startDate(request.getStartDate())
-                .expireDate(request.getExpireDate())
+                .title(request.getTitle()) // 제목
+                .description(request.getDescription()) // 설명
+                .maxParticipants(request.getMaxParticipants()) // 최대 인원
+                .isPrivate(request.getIsPrivate()) // 공개 여부
+                .startDate(request.getStartDate()) // 첼린지 시작 날짜
+                .expireDate(request.getExpireDate()) // 첼린지 종료 날짜
                 .standard(request.getStandard())
-                .isActive(false)
-                .sessionId(null)
+                .isActive(false) // 기본 비활 성화 -> 챌린지 시작 날짜에 true로 변경
+                .sessionId(null) // 방 초기 생성 시 sessionId 없음
                 .build();
 
         // 요청데이타에 없는 태그는 등록 후 챌린지에 추가
         List<TagEntity> tags = tagService.getOrCreateTags(request.getTags());
         for (TagEntity tag : tags) {
             challenge.addTag(tag);
-        }
+        } // 방 태그가 있는지 검사
+
         // 챌린지 테이블에 추가
         ChallengeEntity savedChallenge = challengeRepository.save(challenge);
 
