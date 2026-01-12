@@ -72,8 +72,33 @@ public interface BoardRepository extends JpaRepository<BoardEntity, Long> {
     @Query("SELECT DISTINCT b FROM BoardEntity b LEFT JOIN FETCH b.boardTags bt LEFT JOIN FETCH bt.tag WHERE b.category = :category ORDER BY b.createdAt DESC")
     Page<BoardEntity> findAllByCategoryWithTags(@Param("category") BoardEntity.Category category, Pageable pageable);
 
+    @Query("select b.postId from BoardEntity b order by b.createdAt desc")
+    Page<Long> findPostIdsOrderByCreatedAtDesc(Pageable pageable);
+
+    @Query("select b.postId from BoardEntity b where b.category = :category order by b.createdAt desc")
+    Page<Long> findPostIdsByCategoryOrderByCreatedAtDesc(@Param("category") BoardEntity.Category category, Pageable pageable);
+
+    @Query("""
+    select distinct b
+    from BoardEntity b
+    left join fetch b.boardTags bt
+    left join fetch bt.tag t
+    where b.postId in :ids
+    """)
+    List<BoardEntity> findAllByPostIdInWithTags(@Param("ids") List<Long> ids);
+
 
     // DB의 viewCount 컬럼을 기준으로 내림차순 정렬 및 페이징
 //    Page<BoardEntity> findAllByOrderByViewCountDesc(BoardEntity.Category category, Pageable pageable);
+
+    @Query("""
+    select distinct b
+    from BoardEntity b
+    join fetch b.user u
+    left join fetch b.boardTags bt
+    left join fetch bt.tag t
+    where b.postId in :ids
+    """)
+    List<BoardEntity> findAllByPostIdInWithUserAndTags(@Param("ids") List<Long> ids);
 
 }

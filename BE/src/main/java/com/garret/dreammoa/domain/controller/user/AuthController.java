@@ -136,20 +136,19 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(HttpServletRequest request, HttpServletResponse response) {
         try {
-            // Authorization 헤더에서 리프레시 토큰 추출 (Bearer 토큰 형식)
             String refreshToken = resolveTokenFromHeader(request);
             if (refreshToken == null) {
                 return ResponseEntity.status(HttpServletResponse.SC_UNAUTHORIZED)
                         .body(Map.of("message", "Authorization 헤더에 Refresh Token이 없습니다."));
             }
 
-            // 리프레시 토큰 유효성 검사
+            // 1) 서명/만료 검증
             if (!jwtUtil.validateToken(refreshToken)) {
                 return ResponseEntity.status(HttpServletResponse.SC_UNAUTHORIZED)
                         .body(Map.of("message", "Invalid refresh token"));
             }
 
-            // 토큰에서 사용자 정보 추출
+            // 2) payload 추출
             Long userId = jwtUtil.getUserIdFromToken(refreshToken);
             String email = jwtUtil.getEmailFromToken(refreshToken);
             String name = jwtUtil.getNameFromToken(refreshToken);
@@ -160,16 +159,32 @@ public class AuthController {
                 return ResponseEntity.status(HttpServletResponse.SC_UNAUTHORIZED)
                         .body(Map.of("message", "Invalid refresh token payload"));
             }
-            // Redis에서 저장된 RT와 비교하여 검증
+
+            // 3) Redis에 저장된 RT와 비교 (서버가 발급한 최신 RT인지 확인)
             if (!jwtUtil.isRefreshTokenValid(userId, refreshToken)) {
                 return ResponseEntity.status(HttpServletResponse.SC_UNAUTHORIZED)
                         .body(Map.of("message", "Invalid refresh token"));
             }
-            // 새로운 액세스 토큰 생성
-            String newAccessToken = jwtUtil.createAccessToken(userId, email, name, nickname, role);
-            // 액세스 토큰을 응답 본문에 담아 전송
-            return ResponseEntity.ok(Map.of("accessToken", newAccessToken));
 
+            // 4) ✅ AT 재발급
+            String newAccessToken = jwtUtil.createAccessToken(userId, email, name, nickname, role);
+
+            // 5) ✅ RT Rotation (새 RT 발급 + Redis 저장 + TTL)
+            String newRefreshToken = jwtUtil.rotateRefreshToken(
+                    userId, refreshToken, email, name, nickname, role
+            );
+
+            // 6) 응답
+            // 현재 구조처럼 바디로 내려도 되고, 원하시면 newRefreshToken을 Authorization 헤더로 내려도 됩니다.
+            return ResponseEntity.ok(Map.of(
+                    "accessToken", newAccessToken,
+                    "refreshToken", newRefreshToken
+            ));
+
+        } catch (IllegalStateException e) {
+            // replay 감지 등
+            return ResponseEntity.status(HttpServletResponse.SC_UNAUTHORIZED)
+                    .body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpServletResponse.SC_INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "서버 내부 오류가 발생했습니다.", "error", e.getMessage()));

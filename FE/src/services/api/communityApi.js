@@ -4,14 +4,16 @@ const COMMUNITY_URL = "/boards";
 
 const communityApi = {
   // 글 목록 조회
-  getList: () =>
-    api
-      .get(COMMUNITY_URL)
-      .then((response) => response.data) // response.data 반환
-      .catch((error) => {
-        console.error("에러 발생:", error);
-        throw error;
-      }),
+  getList: (page = 0, size = 7) =>
+  api
+    .get(COMMUNITY_URL, {
+      params: { page, size },
+    })
+    .then((response) => response.data.content)
+    .catch((error) => {
+      console.error("에러 발생:", error);
+      throw error;
+    }),
 
 
   // 최신순 정렬 + 페이지네이션 API

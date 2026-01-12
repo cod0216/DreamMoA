@@ -5,20 +5,11 @@ from transformers import AutoTokenizer, AutoModel
 import torch
 import uvicorn
 import numpy as np
-from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.focus import router as focus_router 
+# from api.focus import router as focus_router 
 
 # FastAPI 애플리케이션 생성
 app = FastAPI()
-app.include_router(focus_router)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # BM-K/KoSimCSE-roberta 모델과 토크나이저 로드
 tokenizer = AutoTokenizer.from_pretrained("BM-K/KoSimCSE-roberta")

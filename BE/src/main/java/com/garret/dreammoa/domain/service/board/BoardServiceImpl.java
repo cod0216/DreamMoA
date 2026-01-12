@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.Authentication;
@@ -34,8 +35,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -305,15 +305,33 @@ public class BoardServiceImpl implements BoardService {
      * 게시글 전체 조회
      */
     @Override
-    public List<BoardResponseDto> getBoardList() {
-        List<BoardEntity> list = boardRepository.findAll();
-        return list.stream()
-                .map(board -> {
-                    int viewCount = viewCountService.getViewCount(board.getPostId());
-                    int commentCount = getCommentCountFromCache(board.getPostId());
-                    return convertToResponseDto(board, viewCount, commentCount);
-                })
-                .collect(Collectors.toList());
+    public Page<BoardResponseDto> getBoardList(Pageable pageable) {
+
+        // 1) 페이징은 ID만 가져오기 (정렬/페이지 정확)
+        Page<Long> idPage = boardRepository.findPostIdsOrderByCreatedAtDesc(pageable);
+        List<Long> ids = idPage.getContent();
+
+        if (ids.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        // 2) ID 목록 기준으로 user + tags를 fetch join으로 한 번에 로딩
+        List<BoardEntity> boards = boardRepository.findAllByPostIdInWithUserAndTags(ids);
+
+        // IN 조회는 DB가 순서를 보장하지 않으므로, 원래 ids 순서로 메모리 정렬
+        Map<Long, Integer> orderMap = new HashMap<>();
+        for (int i = 0; i < ids.size(); i++) {
+            orderMap.put(ids.get(i), i);
+        }
+        boards.sort(Comparator.comparingInt(b -> orderMap.getOrDefault(b.getPostId(), Integer.MAX_VALUE)));
+
+        // DTO 변환 (tags/user는 이미 로딩되어 있으므로 추가 쿼리 없이 처리 가능)
+        List<BoardResponseDto> content = boards.stream()
+                .map(this::convertToResponseDtoLoaded)
+                .toList();
+
+        // totalElements는 idPage에서 가져와야 정확합니다.
+        return new PageImpl<>(content, pageable, idPage.getTotalElements());
     }
 
     @Override
@@ -424,7 +442,7 @@ public class BoardServiceImpl implements BoardService {
                     .map(bt -> bt.getTag().getTagName())
                     .collect(Collectors.toList());
 
-        // BoardEntity -> BoardResponseDto 변환
+            // BoardEntity -> BoardResponseDto 변환
 //        Page<BoardResponseDto> dtoPage = boardPage.map(board -> {
             // 만약 DB의 viewCount가 최신값이라고 가정 (또는 필요 시 viewCountService를 호출)
 //            int viewCount = board.getViewCount().intValue();
@@ -715,6 +733,27 @@ public class BoardServiceImpl implements BoardService {
                 .updatedAt(board.getUpdatedAt())
                 .viewCount(viewCount)
                 .commentCount(commentCount)
+                .tags(tags)
+                .build();
+    }
+
+    private BoardResponseDto convertToResponseDtoLoaded(BoardEntity board) {
+        List<String> tags = board.getBoardTags().stream()
+                .map(bt -> bt.getTag().getTagName())
+                .toList();
+
+        return BoardResponseDto.builder()
+                .postId(board.getPostId())
+                .userId(board.getUser().getId())
+                .userNickname(board.getUser().getNickname())
+                .category(board.getCategory())
+                .title(board.getTitle())
+                .content(board.getContent())
+                .createdAt(board.getCreatedAt())
+                .updatedAt(board.getUpdatedAt())
+                .viewCount(board.getViewCount().intValue())      //  DB 컬럼 사용 (Redis N회 호출 방지)
+                .likeCount(board.getLikeCount())                 //  DB 컬럼 사용
+                .commentCount(board.getCommentCount())           //  DB 컬럼 사용
                 .tags(tags)
                 .build();
     }

@@ -137,13 +137,13 @@ public class BoardSearchServiceImpl implements BoardSearchService {
     @Override
     public PageResponseDto<BoardDocument> searchSemanticBoards(String keyword, int page, int size, boolean topOnly) {
         try {
-            log.debug("searchSemanticBoards - received keyword: {}", keyword);
+//            log.debug("searchSemanticBoards - received keyword: {}", keyword);
 
             // 1. 임베딩 서비스로부터 검색어 임베딩 벡터 획득
             float[] queryEmbedding = embeddingService.getEmbedding(keyword);
-            log.debug("searchSemanticBoards - obtained embedding vector of length: {}", queryEmbedding.length);
-            log.debug("searchSemanticBoards - first 5 elements: {}",
-                    Arrays.toString(Arrays.copyOfRange(queryEmbedding, 0, Math.min(queryEmbedding.length, 5))));
+//            log.debug("searchSemanticBoards - obtained embedding vector of length: {}", queryEmbedding.length);
+//            log.debug("searchSemanticBoards - first 5 elements: {}",
+//                    Arrays.toString(Arrays.copyOfRange(queryEmbedding, 0, Math.min(queryEmbedding.length, 5))));
 
             // 2. float[]를 List<Double>로 변환
             List<Double> queryVectorList = new ArrayList<>();
@@ -185,7 +185,7 @@ public class BoardSearchServiceImpl implements BoardSearchService {
             Map<String, Object> boolQuery = new HashMap<>();
             boolQuery.put("should", Arrays.asList(exactMatchClause, semanticClause));
             boolQuery.put("minimum_should_match", 1);
-
+// 운영, 의미 기반만쓸건가
             /*
              * topOnly가 true인 경우,
              * 전체 검색 결과 중 상위 추천 결과(예: 상위 10개)만을 대상으로 페이지네이션 처리합니다.
@@ -225,6 +225,7 @@ public class BoardSearchServiceImpl implements BoardSearchService {
             Request request = new Request("GET", "/board/_search?pretty");
             request.setJsonEntity(rawQuery);
             Response response = lowLevelClient.performRequest(request);
+
             JsonNode rootNode = mapper.readTree(response.getEntity().getContent());
             JsonNode hitsNode = rootNode.path("hits").path("hits");
 

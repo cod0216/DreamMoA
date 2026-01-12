@@ -73,7 +73,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         // 🔹 JWT 토큰 생성
         String accessToken = jwtUtil.createAccessToken(user.getId(), user.getEmail(), user.getName(), user.getNickname(), String.valueOf(user.getRole()));
-        String refreshToken = jwtUtil.createRefreshToken(user);
+        String refreshToken = jwtUtil.createRefreshToken(user.getId(), user.getEmail(), user.getName(), user.getNickname(), String.valueOf(user.getRole()));
 
         // 🔹 쿠키에 토큰 저장
         // ✅ access_token: HttpOnly X (프론트에서 접근 가능)

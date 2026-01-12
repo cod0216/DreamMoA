@@ -27,7 +27,8 @@ public interface BoardService {
     //전체 게시글 개수 조회
     int getTotalBoardCount();
 
-    List<BoardResponseDto> getBoardList();
+    Page<BoardResponseDto> getBoardList(Pageable pageable);
+
 
     //카테고리별 게시글 개수 조회
     int getBoardCountByCategory(String category);

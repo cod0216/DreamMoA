@@ -66,9 +66,9 @@ public class BoardController {
 
     //게시글 목록 조회
     @GetMapping
-    public ResponseEntity<List<BoardResponseDto>> getBoardList() {
-        List<BoardResponseDto> list = boardService.getBoardList();
-        return ResponseEntity.ok(list);
+    public ResponseEntity<Page<BoardResponseDto>> getBoardList(@PageableDefault(page = 0, size = 7) Pageable pageable) {
+        Page<BoardResponseDto> pageResult  = boardService.getBoardList(pageable);
+        return ResponseEntity.ok(pageResult);
     }
 
     //게시글 수정

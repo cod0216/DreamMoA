@@ -25,14 +25,6 @@ public class BoardSearchController {
      * @param keyword 검색할 키워드
      * @return 검색된 게시글 목록
      */
-//    @GetMapping
-//    public ResponseEntity<List<BoardDocument>> searchBoards(
-//            @RequestParam String keyword,
-//            @RequestParam(defaultValue = "0") int page,
-//            @RequestParam(defaultValue = "5") int size){
-//        List<BoardDocument> results = boardSearchService.searchBoards(keyword);
-//        return ResponseEntity.ok(results);
-//    }
     @GetMapping
     public ResponseEntity<PageResponseDto<BoardDocument>> searchBoards(
             @RequestParam String keyword,
@@ -48,12 +40,6 @@ public class BoardSearchController {
      * @param keyword 검색할 키워드
      * @return 검색된 게시글 목록
      */
-//    @GetMapping("/searchSemantic")
-//    public ResponseEntity<List<BoardDocument>> searchSemanticBoards(@RequestParam String keyword) {
-//        List<BoardDocument> results = boardSearchService.searchSemanticBoards(keyword);
-//        return ResponseEntity.ok(results);
-//    }
-
     @GetMapping("/search-semantic")
     public ResponseEntity<PageResponseDto<BoardDocument>> searchSemanticBoards(
             @RequestParam String keyword,

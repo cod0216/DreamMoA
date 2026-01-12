@@ -37,7 +37,6 @@ public class ElasticsearchConfig {
     String password;
     @Bean
     public ElasticsearchClient elasticsearchClient(){
-        // 인증 정보 설정 (Elasticsearch 8.x에서는 보안 인증 필요)
 
         // 인증 정보 설정 (Elasticsearch 8.x에서는 보안 인증 필요)
         BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
