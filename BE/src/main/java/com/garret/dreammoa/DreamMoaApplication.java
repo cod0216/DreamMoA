@@ -11,6 +11,6 @@ public class DreamMoaApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(DreamMoaApplication.class, args);
-//		String credentialsPath = System.getenv("GOOGLE_APPLICATION_CREDENTIALS");
+		String credentialsPath = System.getenv("GOOGLE_APPLICATION_CREDENTIALS");
 	}
 }
