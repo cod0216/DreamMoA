@@ -23,8 +23,6 @@ export default function CommunityFreeListPage() {
 
   const [sortOption, setSortOption] = useState(currentSort);
   const [totalPages, setTotalPages] = useState(1);
-  const [aiRecommended, setAiRecommended] = useState(false); // AI 추천 여부 상태 추가
-  const [aiPosts, setAiPosts] = useState([]); // AI 추천 게시글 상태 추가
 
   // 정렬 옵션 변경 시 URL 업데이트
   const handleSortChange = (newSort) => {
@@ -50,8 +48,6 @@ export default function CommunityFreeListPage() {
       currentPage,
       setTotalPages,
       searchQuery,
-      setAiRecommended, // AI 추천 여부 전달
-      setAiPosts,
       tagQuery
     );
   }, [sortOption, currentPage, searchQuery, tagQuery]);
@@ -95,12 +91,7 @@ export default function CommunityFreeListPage() {
         {/* 정렬 버튼 */}
         <SortButtons sortOption={sortOption} setSortOption={handleSortChange} />
 
-        <CommunityList
-          sortOption={sortOption}
-          aiRecommended={aiRecommended}
-          aiPosts={aiPosts}
-          searchQuery={searchQuery}
-        />
+        <CommunityList />
 
         <Pagination
           currentPage={currentPage}

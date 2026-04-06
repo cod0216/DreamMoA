@@ -19,8 +19,6 @@ export const fetchPosts = async (
   currentPage = 1,
   setTotalPages = null,
   searchQuery = "",
-  setAiRecommended = null,
-  setAiPosts = null, //AI 게시글 목록 상태 추가
   tagQuery = ""
 ) => {
   console.log(`${category} 게시판 데이터를 불러옵니다...`);
@@ -49,43 +47,15 @@ export const fetchPosts = async (
       console.log("✅ 키워드 검색 응답 데이터:", response);
 
       if (response && response.content && response.content.length > 0) {
-        // 🔹 일반 검색 결과 업데이트 (AI 데이터 포함 X)
         posts = response.content;
         totalPages = response.totalPages || 1;
 
         console.log(`✅ 키워드 검색 결과 ${posts.length}개 발견`);
-        if (setAiRecommended) setAiRecommended(false);
         setPosts(posts);
         if (setTotalPages) setTotalPages(totalPages);
       } else {
-        console.log("⚠️ 키워드 검색 결과 없음, AI 추천 검색 실행...");
-
-        // AI 추천 검색 실행 (AI 데이터는 일반 데이터에 포함하지 않음)
-        const aiResponse = await communityApi.searchSemanticPosts(
-          searchQuery,
-          currentPage - 1,
-          5,
-          true
-        );
-
-        console.log("✅ AI 추천 검색 응답 데이터:", aiResponse);
-
-        if (aiResponse && aiResponse.content && aiResponse.content.length > 0) {
-          // AI 검색 결과는 `setAiPosts()`에만 저장 (일반 데이터에는 포함 X)
-          const aiPosts = aiResponse.content;
-          totalPages = aiResponse.totalPages || 1;
-
-          console.log(`🔥 AI 추천 검색 결과 ${aiPosts.length}개 발견`);
-          if (setAiRecommended) setAiRecommended(true);
-          if (setAiPosts) {
-            setAiPosts(aiPosts); // AI 검색 결과는 여기만 업데이트
-            if (setTotalPages) setTotalPages(totalPages);
-          }
-        } else {
-          console.log("❌ AI 검색 결과도 없음. 빈 배열 유지.");
-          setAiPosts([]);
-          if (setTotalPages) setTotalPages(1);
-        }
+        console.log("❌ 키워드 검색 결과 없음.");
+        if (setTotalPages) setTotalPages(1);
       }
     } else {
       // 정렬 옵션에 따라 API 호출
@@ -109,7 +79,6 @@ export const fetchPosts = async (
       }
     }
 
-    // 상태 업데이트 (AI 데이터와 일반 데이터 분리)
     setPosts(posts);
     if (setTotalPages) setTotalPages(totalPages);
   } catch (error) {

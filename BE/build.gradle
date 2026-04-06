@@ -41,14 +41,13 @@ dependencies {
 	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
-	implementation 'io.swagger.core.v3:swagger-annotations:2.2.25'
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'io.openvidu:openvidu-java-client:2.25.0'
-	implementation 'org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE'
-	implementation 'org.jsoup:jsoup:1.15.4'
-	implementation 'org.springframework.boot:spring-boot-starter-webflux'
-	// Elasticsearch Spring Boot Starter
-	implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
+		implementation 'io.swagger.core.v3:swagger-annotations:2.2.25'
+		implementation 'org.springframework.boot:spring-boot-starter-validation'
+		implementation 'io.openvidu:openvidu-java-client:2.25.0'
+		implementation 'org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE'
+		implementation 'org.jsoup:jsoup:1.15.4'
+		// Elasticsearch Spring Boot Starter
+		implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
 	// 최신 Elasticsearch Java 클라이언트 (8.17.0)
 	implementation 'co.elastic.clients:elasticsearch-java:8.17.0'
 	// https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient
