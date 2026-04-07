@@ -31,39 +31,91 @@ public class BoardSearchServiceImpl implements BoardSearchService {
     @Override
     public PageResponseDto<BoardDocument> searchBoards(String keyword, int page, int size){
         try {
-            // ✅ 검색 쿼리 생성 (multi_match 쿼리)
-            Query query = Query.of(q -> q
-                    .multiMatch(mm -> mm
-                            .query(keyword)
-                            .fields("title", "title.ngram", "content", "content.ngram")
-                    )
+            PageResponseDto<BoardDocument> keywordResponse = executeSearch(
+                    buildKeywordQuery(keyword),
+                    page,
+                    size,
+                    PageResponseDto.SearchType.KEYWORD
             );
 
-            // ✅ Elasticsearch 검색 실행 (from: page * size, size: 요청한 개수)
-            var searchResponse = elasticsearchClient.search(s -> s
-                            .index("board")
-                            .query(query)
-                            .from(page * size) // 🔹 시작 위치
-                            .size(size), // 🔹 페이지 크기
-                    BoardDocument.class
+            if (!keywordResponse.getContent().isEmpty()) {
+                return keywordResponse;
+            }
+
+            return executeSearch(
+                    buildRelatedQuery(keyword),
+                    page,
+                    size,
+                    PageResponseDto.SearchType.RELATED
             );
-
-            // ✅ 검색 결과 변환
-            List<BoardDocument> content = searchResponse.hits().hits().stream()
-                    .map(hit -> hit.source()) // BoardDocument 객체로 변환
-                    .collect(Collectors.toList());
-
-            // ✅ 전체 게시글 개수 가져오기
-            long totalElements = searchResponse.hits().total().value();
-
-            // ✅ 전체 페이지 수 계산
-            int totalPages = (int) Math.ceil((double) totalElements / size);
-
-            // ✅ PageResponse로 감싸서 반환
-            return new PageResponseDto<>(content, totalPages, totalElements);
         } catch (IOException e) {
             throw new RuntimeException("Elasticsearch 검색 중 오류 발생", e);
         }
+    }
+
+    private Query buildKeywordQuery(String keyword) {
+        String minimumShouldMatch = resolveMinimumShouldMatch(keyword);
+        return Query.of(q -> q
+                .multiMatch(mm -> mm
+                        .query(keyword)
+                        .fields("title^3", "content")
+                        .minimumShouldMatch(minimumShouldMatch)
+                )
+        );
+    }
+
+    static String resolveMinimumShouldMatch(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return null;
+        }
+
+        int tokenCount = keyword.trim().split("\\s+").length;
+        if (tokenCount <= 1) {
+            return null;
+        }
+        if (tokenCount == 2) {
+            return "50%";
+        }
+        if (tokenCount == 3) {
+            return "70%";
+        }
+        return "75%";
+    }
+
+    private Query buildRelatedQuery(String keyword) {
+        return Query.of(q -> q
+                .match(m -> m
+                        .field("semanticText")
+                        .query(keyword)
+                )
+        );
+    }
+
+    private PageResponseDto<BoardDocument> executeSearch(
+            Query query,
+            int page,
+            int size,
+            PageResponseDto.SearchType searchType
+    ) throws IOException {
+        SearchResponse<BoardDocument> searchResponse = elasticsearchClient.search(s -> s
+                        .index("board")
+                        .query(query)
+                        .from(page * size)
+                        .size(size),
+                BoardDocument.class
+        );
+
+        List<BoardDocument> content = searchResponse.hits().hits().stream()
+                .map(Hit::source)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        long totalElements = searchResponse.hits().total() != null
+                ? searchResponse.hits().total().value()
+                : content.size();
+        int totalPages = size > 0 ? (int) Math.ceil((double) totalElements / size) : 0;
+
+        return new PageResponseDto<>(content, totalPages, totalElements, searchType);
     }
 
     /**

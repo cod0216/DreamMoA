@@ -4,6 +4,7 @@ import com.garret.dreammoa.domain.document.BoardDocument;
 import com.garret.dreammoa.domain.model.BoardEntity;
 import com.garret.dreammoa.domain.repository.BoardRepository;
 import com.garret.dreammoa.domain.repository.BoardSearchRepository;
+import org.jsoup.Jsoup;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -34,6 +35,7 @@ public class ElasticsearchReindexer {
         int successCount = 0;
         for (BoardEntity board : boards) {
             try {
+                String semanticText = buildSemanticText(board.getTitle(), board.getContent());
                 BoardDocument boardDocument = BoardDocument.builder()
                         .id(board.getPostId())
                         .userId(board.getUser().getId())
@@ -41,6 +43,7 @@ public class ElasticsearchReindexer {
                         .category(board.getCategory().name())
                         .title(board.getTitle())
                         .content(board.getContent())
+                        .semanticText(semanticText)
                         .createdAt(board.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
                         .updatedAt(board.getUpdatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
                         .viewCount(board.getViewCount().intValue())
@@ -55,5 +58,11 @@ public class ElasticsearchReindexer {
             }
         }
         log.info("재동기화 작업 완료: 총 {}개 게시글 중 {}개 색인 성공", boards.size(), successCount);
+    }
+
+    private String buildSemanticText(String title, String content) {
+        String safeTitle = title == null ? "" : title.trim();
+        String safeContent = content == null ? "" : Jsoup.parse(content).text().trim();
+        return (safeTitle + "\n" + safeContent).trim();
     }
 }

@@ -51,7 +51,8 @@ class BoardSearchControllerTest {
         PageResponseDto<BoardDocument> response = new PageResponseDto<>(
                 List.of(boardDocument),
                 1,
-                1
+                1,
+                PageResponseDto.SearchType.KEYWORD
         );
 
         given(boardSearchService.searchBoards(eq("엘라스틱"), eq(0), eq(5))).willReturn(response);
@@ -64,6 +65,7 @@ class BoardSearchControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(content().json(objectMapper.writeValueAsString(response)))
                 .andExpect(jsonPath("$.content[0].title").value("엘라스틱서치 검색"))
+                .andExpect(jsonPath("$.searchType").value("KEYWORD"))
                 .andExpect(jsonPath("$.totalPages").value(1))
                 .andExpect(jsonPath("$.totalElements").value(1));
     }

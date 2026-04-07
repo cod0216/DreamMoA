@@ -9,6 +9,7 @@ import communityApi from "../services/api/communityApi";
  * @param {string} sortOption - "최신순", "조회순", "인기순" 등
  * @param {number} currentPage - 현재 페이지 (1부터 시작)
  * @param {Function} setTotalPages - 전체 페이지 수 상태 업데이트 함수 (조회순일 때 사용)
+ * @param {Function} setSearchType - 검색 결과 유형 상태 업데이트 함수
  * @param {string} [searchQuery=""] - 제목 검색어
  * @param {string} [tagQuery=""] - 태그 검색어
  */
@@ -18,6 +19,7 @@ export const fetchPosts = async (
   sortOption,
   currentPage = 1,
   setTotalPages = null,
+  setSearchType = null,
   searchQuery = "",
   tagQuery = ""
 ) => {
@@ -49,15 +51,18 @@ export const fetchPosts = async (
       if (response && response.content && response.content.length > 0) {
         posts = response.content;
         totalPages = response.totalPages || 1;
+        if (setSearchType) setSearchType(response.searchType || "KEYWORD");
 
         console.log(`✅ 키워드 검색 결과 ${posts.length}개 발견`);
         setPosts(posts);
         if (setTotalPages) setTotalPages(totalPages);
       } else {
         console.log("❌ 키워드 검색 결과 없음.");
+        if (setSearchType) setSearchType(response?.searchType || null);
         if (setTotalPages) setTotalPages(1);
       }
     } else {
+      if (setSearchType) setSearchType(null);
       // 정렬 옵션에 따라 API 호출
       console.log(`[fetchPosts] 요청 - sortOption: ${sortOption}, page: ${currentPage}, size: 7, search: ${searchQuery}, tag: ${tagQuery}`);
 
@@ -82,6 +87,7 @@ export const fetchPosts = async (
     setPosts(posts);
     if (setTotalPages) setTotalPages(totalPages);
   } catch (error) {
+    if (setSearchType) setSearchType(null);
     console.error("📌 게시글 데이터 가져오기 에러:", error);
   }
 };

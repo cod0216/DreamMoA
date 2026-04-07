@@ -23,6 +23,7 @@ export default function CommunityQnAListPage() {
 
   const [sortOption, setSortOption] = useState(currentSort);
   const [totalPages, setTotalPages] = useState(1);
+  const [searchType, setSearchType] = useState(null);
 
   console.log(
     "📌 현재 URL에서 가져온 페이지 번호:",
@@ -57,6 +58,7 @@ export default function CommunityQnAListPage() {
       sortOption,
       currentPage,
       setTotalPages,
+      setSearchType,
       searchQuery,
       tagQuery
     );
@@ -97,7 +99,7 @@ export default function CommunityQnAListPage() {
         {/* ✅ 정렬 버튼 (정렬 옵션 변경 시 `handleSortChange` 실행) */}
         <SortButtons sortOption={sortOption} setSortOption={handleSortChange} />
 
-        <CommunityList />
+        <CommunityList searchType={searchType} />
 
         {/* Pagination에서 onPageChange를 `handlePageChange`로 전달 */}
         <Pagination
