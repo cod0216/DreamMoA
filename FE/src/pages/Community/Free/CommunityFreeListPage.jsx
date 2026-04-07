@@ -23,7 +23,6 @@ export default function CommunityFreeListPage() {
 
   const [sortOption, setSortOption] = useState(currentSort);
   const [totalPages, setTotalPages] = useState(1);
-  const [searchType, setSearchType] = useState(null);
 
   // 정렬 옵션 변경 시 URL 업데이트
   const handleSortChange = (newSort) => {
@@ -48,7 +47,6 @@ export default function CommunityFreeListPage() {
       sortOption,
       currentPage,
       setTotalPages,
-      setSearchType,
       searchQuery,
       tagQuery
     );
@@ -93,7 +91,7 @@ export default function CommunityFreeListPage() {
         {/* 정렬 버튼 */}
         <SortButtons sortOption={sortOption} setSortOption={handleSortChange} />
 
-        <CommunityList searchType={searchType} />
+        <CommunityList />
 
         <Pagination
           currentPage={currentPage}

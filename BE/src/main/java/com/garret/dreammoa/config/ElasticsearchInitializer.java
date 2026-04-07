@@ -6,7 +6,6 @@ import co.elastic.clients.elasticsearch.indices.CreateIndexResponse;
 import co.elastic.clients.elasticsearch.indices.DeleteIndexRequest;
 import co.elastic.clients.elasticsearch.indices.ExistsRequest;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
@@ -17,8 +16,6 @@ import java.nio.charset.StandardCharsets;
 public class ElasticsearchInitializer {
 
     private final ElasticsearchClient elasticsearchClient;
-    @Value("${elastic.semantic.inference-id:.elser-2-elasticsearch}")
-    private String semanticInferenceId;
 
     public ElasticsearchInitializer(ElasticsearchClient elasticsearchClient) {
         this.elasticsearchClient = elasticsearchClient;
@@ -39,43 +36,63 @@ public class ElasticsearchInitializer {
             }
 
             // 새로운 'board' 인덱스 생성
-            // nori_analyzer를 사용하여 한국어 형태소 기반 검색을 지원합니다.
+            // index.max_ngram_diff 값을 추가하여 ngram tokenizer의 min_gram과 max_gram의 차이를 허용합니다.
+            // nori_analyzer는 한국어 형태소 분석을 위해 사용하고,
+            // ngram_analyzer는 일반 ngram tokenizer를 사용하여 부분 문자열 검색을 지원합니다.
             String settingsJson = """
                     {
                       "settings": {
+                        "index": {
+                          "max_ngram_diff": 8
+                        },
                         "analysis": {
                           "tokenizer": {
-                            "nori_tokenizer": { "type": "nori_tokenizer" }
+                            "nori_tokenizer": { "type": "nori_tokenizer" },
+                            "ngram_tokenizer": {
+                              "type": "ngram",
+                              "min_gram": 2,
+                              "max_gram": 10,
+                              "token_chars": [ "letter", "digit", "symbol" ]
+                            }
                           },
                           "analyzer": {
-                            "nori_analyzer": { "type": "custom", "tokenizer": "nori_tokenizer" }
+                            "nori_analyzer": { "type": "custom", "tokenizer": "nori_tokenizer" },
+                            "ngram_analyzer": { "type": "custom", "tokenizer": "ngram_tokenizer", "filter": ["lowercase"] }
                           }
                         }
                       }
                     }
                     """;
 
-            // title/content 필드에 nori_analyzer를 적용하고, semantic fallback 검색용 필드를 함께 저장합니다.
+            // 멀티 필드 매핑을 사용하여, 기본 필드에는 nori_analyzer, 서브 필드에는 ngram_analyzer를 적용합니다.
             String mappingsJson = """
                     {
                       "mappings": {
                         "properties": {
                           "title": {
                             "type": "text",
-                            "analyzer": "nori_analyzer"
+                            "analyzer": "nori_analyzer",
+                            "fields": {
+                              "ngram": {
+                                "type": "text",
+                                "analyzer": "ngram_analyzer"
+                              }
+                            }
                           },
                           "content": {
                             "type": "text",
-                            "analyzer": "nori_analyzer"
-                          },
-                          "semanticText": {
-                            "type": "semantic_text",
-                            "inference_id": "%s"
+                            "analyzer": "nori_analyzer",
+                            "fields": {
+                              "ngram": {
+                                "type": "text",
+                                "analyzer": "ngram_analyzer"
+                              }
+                            }
                           }
                         }
                       }
                     }
-                    """.formatted(semanticInferenceId);
+                    """;
 
             ByteArrayInputStream settingsStream = new ByteArrayInputStream(
                     settingsJson.getBytes(StandardCharsets.UTF_8));

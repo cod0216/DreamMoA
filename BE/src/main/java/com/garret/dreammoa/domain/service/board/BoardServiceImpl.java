@@ -659,7 +659,6 @@ public class BoardServiceImpl implements BoardService {
      */
     private void syncToElasticsearch(BoardEntity board) {
         try {
-            String semanticText = buildSemanticText(board.getTitle(), board.getContent());
             BoardDocument boardDocument = BoardDocument.builder()
                     .id(board.getPostId())
                     .userId(board.getUser().getId())
@@ -667,7 +666,6 @@ public class BoardServiceImpl implements BoardService {
                     .category(board.getCategory().name())
                     .title(board.getTitle())
                     .content(board.getContent())
-                    .semanticText(semanticText)
                     .createdAt(board.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
                     .updatedAt(board.getUpdatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
                     .viewCount(board.getViewCount().intValue())
@@ -678,12 +676,6 @@ public class BoardServiceImpl implements BoardService {
         } catch (Exception e) {
             log.error("❌ Elasticsearch 동기화 중 오류 발생: ", e);
         }
-    }
-
-    private String buildSemanticText(String title, String content) {
-        String safeTitle = title == null ? "" : title.trim();
-        String safeContent = content == null ? "" : Jsoup.parse(content).text().trim();
-        return (safeTitle + "\n" + safeContent).trim();
     }
 
 

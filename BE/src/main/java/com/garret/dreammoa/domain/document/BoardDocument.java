@@ -22,7 +22,6 @@ public class BoardDocument {
     private String category;
     private Long userId;
     private String userNickname;
-    private String semanticText;
     private long createdAt;  // ✅ LocalDateTime → long (epoch time)
     private long updatedAt;  // ✅ LocalDateTime → long (epoch time)
     private int viewCount;
