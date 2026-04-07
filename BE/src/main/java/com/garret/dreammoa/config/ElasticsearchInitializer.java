@@ -88,7 +88,11 @@ public class ElasticsearchInitializer {
                                 "analyzer": "ngram_analyzer"
                               }
                             }
-                          }
+                          },
+                          "embedding": {
+                                          "type": "dense_vector",
+                                          "dims": 768
+                                        }
                         }
                       }
                     }

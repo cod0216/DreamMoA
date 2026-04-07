@@ -155,6 +155,18 @@ const communityApi = {
         throw error;
       }),
 
+  // 🔹 의미 기반 검색 API (GET /boards/search/searchSemantic?keyword=...)
+  searchSemanticPosts: (keyword, page, size, topOnly = false) =>
+    api
+      .get(`${COMMUNITY_URL}/search/search-semantic`, {
+        params: { keyword, page, size, topOnly },
+      })
+      .then((response) => response.data)
+      .catch((error) => {
+        console.error("의미 기반 검색 에러:", error);
+        return { content: [], totalPages: 1 }; // AI 검색 에러 발생 시 빈 배열 반환
+      }),
+
   //태그 검색 api
   searchByTag: (tag, page, size) =>
     api

@@ -23,6 +23,8 @@ export default function CommunityQnAListPage() {
 
   const [sortOption, setSortOption] = useState(currentSort);
   const [totalPages, setTotalPages] = useState(1);
+  const [aiRecommended, setAiRecommended] = useState(false); // AI 추천 여부 상태 추가
+  const [aiPosts, setAiPosts] = useState([]); // AI 추천 게시글 상태 추가
 
   console.log(
     "📌 현재 URL에서 가져온 페이지 번호:",
@@ -58,6 +60,8 @@ export default function CommunityQnAListPage() {
       currentPage,
       setTotalPages,
       searchQuery,
+      setAiRecommended, // AI 추천 여부 전달
+      setAiPosts,
       tagQuery
     );
   }, [sortOption, currentPage, searchQuery, tagQuery]); // currentPage 의존성 추가
@@ -97,7 +101,12 @@ export default function CommunityQnAListPage() {
         {/* ✅ 정렬 버튼 (정렬 옵션 변경 시 `handleSortChange` 실행) */}
         <SortButtons sortOption={sortOption} setSortOption={handleSortChange} />
 
-        <CommunityList />
+        <CommunityList
+          sortOption={sortOption}
+          aiRecommended={aiRecommended}
+          aiPosts={aiPosts}
+          searchQuery={searchQuery}
+        />
 
         {/* Pagination에서 onPageChange를 `handlePageChange`로 전달 */}
         <Pagination

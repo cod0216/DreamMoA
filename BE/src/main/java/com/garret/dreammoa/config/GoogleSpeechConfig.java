@@ -8,10 +8,10 @@ import org.springframework.context.annotation.Configuration;
 import java.io.IOException;
 import java.nio.file.Path;
 
-//@Configuration
+@Configuration
 public class GoogleSpeechConfig {
 
-//    @Bean
+    @Bean
     public SpeechClient speechClient() throws IOException {
 
         // 1️⃣ 환경 변수에서 GOOGLE_APPLICATION_CREDENTIALS 가져오기

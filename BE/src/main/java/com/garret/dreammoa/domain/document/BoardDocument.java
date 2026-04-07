@@ -6,6 +6,9 @@ import jakarta.persistence.Id;
 import lombok.*;
 import org.springframework.data.elasticsearch.annotations.Document;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Document(indexName = "board")
 @Getter
@@ -25,4 +28,6 @@ public class BoardDocument {
     private long createdAt;  // ✅ LocalDateTime → long (epoch time)
     private long updatedAt;  // ✅ LocalDateTime → long (epoch time)
     private int viewCount;
+    private List<Double> embedding;
+
 }
