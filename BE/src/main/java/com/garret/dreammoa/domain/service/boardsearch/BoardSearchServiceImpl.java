@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.elasticsearch.core.query.HasChildQuery;
 import org.springframework.stereotype.Service;
 
@@ -40,6 +41,12 @@ public class BoardSearchServiceImpl implements BoardSearchService {
     private final ElasticsearchClient elasticsearchClient;
     private final EmbeddingService embeddingService;  // 생성자 주입 (@RequiredArgsConstructor 사용)
 
+    @Value("${elastic.search.semantic.min-score:1.2}")
+    private double semanticMinScore;
+
+    @Value("${elastic.search.semantic.top-limit:10}")
+    private int semanticTopLimit;
+
     /**
      * 키워드가 포함된 게시글 검색(Elasticsearch match query 사용)
      * @param keyword 검색할 키워드
@@ -48,11 +55,13 @@ public class BoardSearchServiceImpl implements BoardSearchService {
     @Override
     public PageResponseDto<BoardDocument> searchBoards(String keyword, int page, int size){
         try {
+            String minimumShouldMatch = resolveMinimumShouldMatch(keyword);
             // ✅ 검색 쿼리 생성 (multi_match 쿼리)
             Query query = Query.of(q -> q
                     .multiMatch(mm -> mm
                             .query(keyword)
                             .fields("title^3", "title.ngram^2", "plainContent")
+                            .minimumShouldMatch(minimumShouldMatch)
                     )
             );
 
@@ -81,6 +90,24 @@ public class BoardSearchServiceImpl implements BoardSearchService {
         } catch (IOException e) {
             throw new RuntimeException("Elasticsearch 검색 중 오류 발생", e);
         }
+    }
+
+    static String resolveMinimumShouldMatch(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return null;
+        }
+
+        int tokenCount = keyword.trim().split("\\s+").length;
+        if (tokenCount <= 1) {
+            return null;
+        }
+        if (tokenCount == 2) {
+            return "50%";
+        }
+        if (tokenCount == 3) {
+            return "70%";
+        }
+        return "75%";
     }
 
     /**
@@ -196,7 +223,7 @@ public class BoardSearchServiceImpl implements BoardSearchService {
             int queryFrom;
             int querySize;
             if (topOnly) {
-                int topLimit = 10; // 상위 추천 결과 제한 개수
+                int topLimit = semanticTopLimit; // 상위 추천 결과 제한 개수
                 queryFrom = 0;
                 querySize = topLimit;
             } else {
@@ -209,6 +236,7 @@ public class BoardSearchServiceImpl implements BoardSearchService {
             finalQuery.put("query", Collections.singletonMap("bool", boolQuery));
             finalQuery.put("from", queryFrom);
             finalQuery.put("size", querySize);
+            finalQuery.put("min_score", semanticMinScore);
             finalQuery.put("sort", Collections.singletonList(
                     Collections.singletonMap("_score", Collections.singletonMap("order", "desc"))
             ));
