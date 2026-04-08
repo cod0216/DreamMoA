@@ -661,8 +661,9 @@ public class BoardServiceImpl implements BoardService {
      */
     private void syncToElasticsearch(BoardEntity board) {
         try {
-            // 게시글 제목과 내용을 결합하여 임베딩 계산
-            String textForEmbedding = board.getTitle() + " " + board.getContent();
+            String plainContent = extractPlainContent(board.getContent());
+            // 게시글 제목과 plain text 본문을 결합하여 임베딩 계산
+            String textForEmbedding = board.getTitle() + " " + plainContent;
             float[] embedding = embeddingService.getEmbedding(textForEmbedding);
 
             // 임베딩 계산이 실패했거나 빈 배열이면 기본 384차원 0.0 배열 사용 (Java에서는 new float[384]가 0.0으로 초기화됨)
@@ -684,6 +685,7 @@ public class BoardServiceImpl implements BoardService {
                     .category(board.getCategory().name())
                     .title(board.getTitle())
                     .content(board.getContent())
+                    .plainContent(plainContent)
                     .createdAt(board.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
                     .updatedAt(board.getUpdatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
                     .viewCount(board.getViewCount().intValue())
@@ -695,6 +697,13 @@ public class BoardServiceImpl implements BoardService {
         } catch (Exception e) {
             log.error("❌ Elasticsearch 동기화 중 오류 발생: ", e);
         }
+    }
+
+    private String extractPlainContent(String htmlContent) {
+        if (htmlContent == null || htmlContent.isBlank()) {
+            return "";
+        }
+        return Jsoup.parse(htmlContent).text();
     }
 
 

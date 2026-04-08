@@ -6,7 +6,6 @@ import jakarta.persistence.Id;
 import lombok.*;
 import org.springframework.data.elasticsearch.annotations.Document;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -22,6 +21,7 @@ public class BoardDocument {
     private Long id;
     private String title;
     private String content;
+    private String plainContent;
     private String category;
     private Long userId;
     private String userNickname;

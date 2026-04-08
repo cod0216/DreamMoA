@@ -8,6 +8,7 @@ import com.garret.dreammoa.domain.service.embedding.EmbeddingService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.event.EventListener;
@@ -38,8 +39,9 @@ public class ElasticsearchReindexer {
         int successCount = 0;
         for (BoardEntity board : boards) {
             try {
-                // 제목과 내용을 결합하여 임베딩 텍스트 구성
-                String textForEmbedding = board.getTitle() + " " + board.getContent();
+                String plainContent = extractPlainContent(board.getContent());
+                // 제목과 plain text 본문을 결합하여 임베딩 텍스트 구성
+                String textForEmbedding = board.getTitle() + " " + plainContent;
                 float[] embedding = embeddingService.getEmbedding(textForEmbedding);
 
                 // 임베딩 계산 실패 또는 빈 배열인 경우 기본 384차원 0.0 배열 사용
@@ -61,6 +63,7 @@ public class ElasticsearchReindexer {
                         .category(board.getCategory().name())
                         .title(board.getTitle())
                         .content(board.getContent())
+                        .plainContent(plainContent)
                         .createdAt(board.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
                         .updatedAt(board.getUpdatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
                         .viewCount(board.getViewCount().intValue())
@@ -76,5 +79,12 @@ public class ElasticsearchReindexer {
             }
         }
         log.info("재동기화 작업 완료: 총 {}개 게시글 중 {}개 색인 성공", boards.size(), successCount);
+    }
+
+    private String extractPlainContent(String htmlContent) {
+        if (htmlContent == null || htmlContent.isBlank()) {
+            return "";
+        }
+        return Jsoup.parse(htmlContent).text();
     }
 }

@@ -52,7 +52,7 @@ public class BoardSearchServiceImpl implements BoardSearchService {
             Query query = Query.of(q -> q
                     .multiMatch(mm -> mm
                             .query(keyword)
-                            .fields("title", "title.ngram", "content", "content.ngram")
+                            .fields("title^3", "title.ngram^2", "plainContent")
                     )
             );
 
@@ -154,13 +154,13 @@ public class BoardSearchServiceImpl implements BoardSearchService {
             // 3. "정확한 텍스트 매칭" 쿼리 (제목과 내용 검색, boost 적용)
             Map<String, Object> titleMatch = new HashMap<>();
             titleMatch.put("query", keyword);
-            titleMatch.put("boost", 3.0);
+            titleMatch.put("boost", 4.0);
             Map<String, Object> titleClause = Collections.singletonMap("match", Collections.singletonMap("title", titleMatch));
 
             Map<String, Object> contentMatch = new HashMap<>();
             contentMatch.put("query", keyword);
-            contentMatch.put("boost", 3.0);
-            Map<String, Object> contentClause = Collections.singletonMap("match", Collections.singletonMap("content", contentMatch));
+            contentMatch.put("boost", 2.0);
+            Map<String, Object> contentClause = Collections.singletonMap("match", Collections.singletonMap("plainContent", contentMatch));
 
             Map<String, Object> exactMatchClause = new HashMap<>();
             exactMatchClause.put("bool", Collections.singletonMap("should", Arrays.asList(titleClause, contentClause)));

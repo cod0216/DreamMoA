@@ -36,9 +36,9 @@ public class ElasticsearchInitializer {
             }
 
             // 새로운 'board' 인덱스 생성
-            // index.max_ngram_diff 값을 추가하여 ngram tokenizer의 min_gram과 max_gram의 차이를 허용합니다.
+            // index.max_ngram_diff 값을 추가하여 edge_ngram tokenizer의 min_gram과 max_gram 차이를 허용합니다.
             // nori_analyzer는 한국어 형태소 분석을 위해 사용하고,
-            // ngram_analyzer는 일반 ngram tokenizer를 사용하여 부분 문자열 검색을 지원합니다.
+            // title.ngram 필드는 edge_ngram 기반 prefix 검색을 지원합니다.
             String settingsJson = """
                     {
                       "settings": {
@@ -48,8 +48,8 @@ public class ElasticsearchInitializer {
                         "analysis": {
                           "tokenizer": {
                             "nori_tokenizer": { "type": "nori_tokenizer" },
-                            "ngram_tokenizer": {
-                              "type": "ngram",
+                            "edge_ngram_tokenizer": {
+                              "type": "edge_ngram",
                               "min_gram": 2,
                               "max_gram": 10,
                               "token_chars": [ "letter", "digit", "symbol" ]
@@ -57,14 +57,15 @@ public class ElasticsearchInitializer {
                           },
                           "analyzer": {
                             "nori_analyzer": { "type": "custom", "tokenizer": "nori_tokenizer" },
-                            "ngram_analyzer": { "type": "custom", "tokenizer": "ngram_tokenizer", "filter": ["lowercase"] }
+                            "edge_ngram_analyzer": { "type": "custom", "tokenizer": "edge_ngram_tokenizer", "filter": ["lowercase"] }
                           }
                         }
                       }
                     }
                     """;
 
-            // 멀티 필드 매핑을 사용하여, 기본 필드에는 nori_analyzer, 서브 필드에는 ngram_analyzer를 적용합니다.
+            // 멀티 필드 매핑을 사용하여, 기본 텍스트 필드에는 nori_analyzer를 적용합니다.
+            // 제목의 부분검색 필드는 edge_ngram을 사용하고, 본문 검색은 plainContent 필드로 수행합니다.
             String mappingsJson = """
                     {
                       "mappings": {
@@ -75,19 +76,18 @@ public class ElasticsearchInitializer {
                             "fields": {
                               "ngram": {
                                 "type": "text",
-                                "analyzer": "ngram_analyzer"
+                                "analyzer": "edge_ngram_analyzer"
                               }
                             }
                           },
                           "content": {
                             "type": "text",
                             "analyzer": "nori_analyzer",
-                            "fields": {
-                              "ngram": {
-                                "type": "text",
-                                "analyzer": "ngram_analyzer"
-                              }
-                            }
+                            "index": false
+                          },
+                          "plainContent": {
+                            "type": "text",
+                            "analyzer": "nori_analyzer"
                           },
                           "embedding": {
                                           "type": "dense_vector",
