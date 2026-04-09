@@ -41,7 +41,7 @@ public class BoardSearchServiceImpl implements BoardSearchService {
     private final ElasticsearchClient elasticsearchClient;
     private final EmbeddingService embeddingService;  // 생성자 주입 (@RequiredArgsConstructor 사용)
 
-    @Value("${elastic.search.semantic.min-score:1.2}")
+    @Value("${elastic.search.semantic.min-score:1.4}")
     private double semanticMinScore;
 
     @Value("${elastic.search.semantic.top-limit:10}")
