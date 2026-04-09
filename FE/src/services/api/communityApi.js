@@ -144,10 +144,10 @@ const communityApi = {
       }),
 
   // 키워드 검색 API (GET /boards/search?keyword=...)
-  searchPosts: (keyword, page, size) =>
+  searchPosts: (keyword, category, page, size) =>
     api
       .get(`${COMMUNITY_URL}/search`, {
-        params: { keyword, page, size },
+        params: { keyword, category, page, size },
       })
       .then((response) => response.data)
       .catch((error) => {
@@ -156,10 +156,10 @@ const communityApi = {
       }),
 
   // 🔹 의미 기반 검색 API (GET /boards/search/searchSemantic?keyword=...)
-  searchSemanticPosts: (keyword, page, size, topOnly = false) =>
+  searchSemanticPosts: (keyword, category, page, size, topOnly = false) =>
     api
       .get(`${COMMUNITY_URL}/search/search-semantic`, {
-        params: { keyword, page, size, topOnly },
+        params: { keyword, category, page, size, topOnly },
       })
       .then((response) => response.data)
       .catch((error) => {

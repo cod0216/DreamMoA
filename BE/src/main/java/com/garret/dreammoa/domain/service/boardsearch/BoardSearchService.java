@@ -12,7 +12,7 @@ public interface BoardSearchService {
      * @return 검색된 게시글 목록
      */
 
-    PageResponseDto<BoardDocument> searchBoards(String keyword, int page, int size);
+    PageResponseDto<BoardDocument> searchBoards(String keyword, String category, int page, int size);
 
-    PageResponseDto<BoardDocument> searchSemanticBoards(String keyword, int page, int size, boolean topOnly);
+    PageResponseDto<BoardDocument> searchSemanticBoards(String keyword, String category, int page, int size, boolean topOnly);
 }

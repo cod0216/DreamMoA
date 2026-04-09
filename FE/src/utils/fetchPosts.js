@@ -44,7 +44,7 @@ export const fetchPosts = async (
     } else if (searchQuery.trim()) {
       // 🔹 1. 기본 키워드 검색 실행
       console.log("🔍 키워드 검색 실행:", searchQuery);
-      response = await communityApi.searchPosts(searchQuery, currentPage - 1, 5);
+      response = await communityApi.searchPosts(searchQuery, category, currentPage - 1, 5);
 
       console.log("✅ 키워드 검색 응답 데이터:", response);
 
@@ -63,6 +63,7 @@ export const fetchPosts = async (
         // AI 추천 검색 실행 (AI 데이터는 일반 데이터에 포함하지 않음)
         const aiResponse = await communityApi.searchSemanticPosts(
           searchQuery,
+          category,
           currentPage - 1,
           5,
           true

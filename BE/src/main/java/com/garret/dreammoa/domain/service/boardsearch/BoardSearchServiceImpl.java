@@ -41,7 +41,7 @@ public class BoardSearchServiceImpl implements BoardSearchService {
     private final ElasticsearchClient elasticsearchClient;
     private final EmbeddingService embeddingService;  // 생성자 주입 (@RequiredArgsConstructor 사용)
 
-    @Value("${elastic.search.semantic.min-score:1.4}")
+    @Value("${elastic.search.semantic.min-score:1.2}")
     private double semanticMinScore;
 
     @Value("${elastic.search.semantic.top-limit:10}")
@@ -53,17 +53,18 @@ public class BoardSearchServiceImpl implements BoardSearchService {
      * @return 검색된 게시글 목록
      */
     @Override
-    public PageResponseDto<BoardDocument> searchBoards(String keyword, int page, int size){
+    public PageResponseDto<BoardDocument> searchBoards(String keyword, String category, int page, int size){
         try {
             String minimumShouldMatch = resolveMinimumShouldMatch(keyword);
             // ✅ 검색 쿼리 생성 (multi_match 쿼리)
-            Query query = Query.of(q -> q
+            Query keywordQuery = Query.of(q -> q
                     .multiMatch(mm -> mm
                             .query(keyword)
                             .fields("title^3", "title.ngram^2", "plainContent")
                             .minimumShouldMatch(minimumShouldMatch)
                     )
             );
+            Query query = wrapWithCategoryFilter(keywordQuery, category);
 
             // ✅ Elasticsearch 검색 실행 (from: page * size, size: 요청한 개수)
             var searchResponse = elasticsearchClient.search(s -> s
@@ -162,7 +163,7 @@ public class BoardSearchServiceImpl implements BoardSearchService {
     }
 
     @Override
-    public PageResponseDto<BoardDocument> searchSemanticBoards(String keyword, int page, int size, boolean topOnly) {
+    public PageResponseDto<BoardDocument> searchSemanticBoards(String keyword, String category, int page, int size, boolean topOnly) {
         try {
 //            log.debug("searchSemanticBoards - received keyword: {}", keyword);
 
@@ -233,7 +234,15 @@ public class BoardSearchServiceImpl implements BoardSearchService {
 
             // 6. 최종 쿼리 구성 (페이지네이션과 정렬 적용)
             Map<String, Object> finalQuery = new HashMap<>();
-            finalQuery.put("query", Collections.singletonMap("bool", boolQuery));
+            Map<String, Object> finalBoolQuery = new HashMap<>();
+            finalBoolQuery.put("should", boolQuery.get("should"));
+            finalBoolQuery.put("minimum_should_match", boolQuery.get("minimum_should_match"));
+            if (hasCategoryFilter(category)) {
+                finalBoolQuery.put("filter", Collections.singletonList(
+                        Collections.singletonMap("term", Collections.singletonMap("category", category))
+                ));
+            }
+            finalQuery.put("query", Collections.singletonMap("bool", finalBoolQuery));
             finalQuery.put("from", queryFrom);
             finalQuery.put("size", querySize);
             finalQuery.put("min_score", semanticMinScore);
@@ -293,6 +302,28 @@ public class BoardSearchServiceImpl implements BoardSearchService {
             log.error("Elasticsearch 의미 기반 검색 중 오류 발생", e);
             throw new RuntimeException("Elasticsearch 의미 기반 검색 중 오류 발생", e);
         }
+    }
+
+    private Query wrapWithCategoryFilter(Query query, String category) {
+        if (!hasCategoryFilter(category)) {
+            return query;
+        }
+
+        return Query.of(q -> q
+                .bool(b -> b
+                        .must(query)
+                        .filter(f -> f
+                                .term(t -> t
+                                        .field("category")
+                                        .value(category)
+                                )
+                        )
+                )
+        );
+    }
+
+    private boolean hasCategoryFilter(String category) {
+        return category != null && !category.isBlank();
     }
 
 
