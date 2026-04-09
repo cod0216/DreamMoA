@@ -5,11 +5,14 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 import java.util.List;
 
 @Service
+@Slf4j
 public class EmbeddingService {
 
     @Value("${openai.api.key}")
@@ -29,6 +32,10 @@ public class EmbeddingService {
             return new float[0];
         }
 
+        String preview = text.length() > 80 ? text.substring(0, 80) + "..." : text;
+        log.info("🔎 OpenAI 임베딩 요청 시작 - model={}, dimensions={}, textLength={}, preview={}",
+                embeddingModel, embeddingDimensions, text.length(), preview);
+
         EmbeddingRequest request = new EmbeddingRequest(text, embeddingModel, embeddingDimensions);
         WebClient webClient = WebClient.builder()
                 .baseUrl(embeddingApiUrl)
@@ -36,26 +43,39 @@ public class EmbeddingService {
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build();
 
-        EmbeddingResponse response = webClient.post()
-                .bodyValue(request)
-                .retrieve()
-                .bodyToMono(EmbeddingResponse.class)
-                .block(Duration.ofSeconds(30));
+        try {
+            EmbeddingResponse response = webClient.post()
+                    .bodyValue(request)
+                    .retrieve()
+                    .bodyToMono(EmbeddingResponse.class)
+                    .block(Duration.ofSeconds(30));
 
-        if (response == null || response.getData() == null || response.getData().isEmpty()) {
-            throw new IllegalStateException("OpenAI 임베딩 응답이 비어 있습니다.");
-        }
+            if (response == null || response.getData() == null || response.getData().isEmpty()) {
+                log.error("❌ OpenAI 임베딩 응답이 비어 있습니다.");
+                throw new IllegalStateException("OpenAI 임베딩 응답이 비어 있습니다.");
+            }
 
-        List<Double> embedding = response.getData().get(0).getEmbedding();
-        if (embedding == null || embedding.isEmpty()) {
-            throw new IllegalStateException("OpenAI 임베딩 벡터가 비어 있습니다.");
-        }
+            List<Double> embedding = response.getData().get(0).getEmbedding();
+            if (embedding == null || embedding.isEmpty()) {
+                log.error("❌ OpenAI 임베딩 벡터가 비어 있습니다.");
+                throw new IllegalStateException("OpenAI 임베딩 벡터가 비어 있습니다.");
+            }
 
-        float[] vector = new float[embedding.size()];
-        for (int i = 0; i < embedding.size(); i++) {
-            vector[i] = embedding.get(i).floatValue();
+            log.info("✅ OpenAI 임베딩 응답 성공 - vectorSize={}", embedding.size());
+
+            float[] vector = new float[embedding.size()];
+            for (int i = 0; i < embedding.size(); i++) {
+                vector[i] = embedding.get(i).floatValue();
+            }
+            return vector;
+        } catch (WebClientResponseException e) {
+            log.error("❌ OpenAI 임베딩 API 오류 - status={}, responseBody={}",
+                    e.getStatusCode(), e.getResponseBodyAsString(), e);
+            throw e;
+        } catch (Exception e) {
+            log.error("❌ OpenAI 임베딩 처리 중 예외 발생", e);
+            throw e;
         }
-        return vector;
     }
 
     public static class EmbeddingRequest {
