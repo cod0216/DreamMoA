@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import communityApi from "../../services/api/communityApi";
 import likeApi from "../../services/api/likeApi";
 
-export default function CommunityItem({ post }) {
+export default function CommunityItem({ post, searchLogId = null, resultType = null, clickedRank = null }) {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const currentPage = queryParams.get("page") || "1";
@@ -62,6 +62,16 @@ export default function CommunityItem({ post }) {
   return (
     <Link
       to={`/community/detail/${post.postId || post.id}`}
+      onClick={() => {
+        if (!searchLogId || !resultType) return;
+        communityApi.recordSearchClick({
+          searchLogId,
+          postId,
+          postTitle: post.title,
+          clickedRank: clickedRank ?? 1,
+          resultType,
+        });
+      }}
       state={{
         from: "list", // 목록에서 왔음을 표시
         page: Number(currentPage),

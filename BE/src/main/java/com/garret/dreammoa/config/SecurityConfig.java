@@ -114,6 +114,7 @@ public class SecurityConfig {
                                 .permitAll()
                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                 .requestMatchers("/files/**").permitAll()
+                                .requestMatchers("/admin/**").hasRole("ADMIN")
                                 .anyRequest().authenticated()
                 )
                 // 구글로그인설정
@@ -154,4 +155,3 @@ public class SecurityConfig {
 
 
 }
-

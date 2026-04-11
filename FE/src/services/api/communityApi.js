@@ -1,4 +1,4 @@
-import api from "./axios";
+import api, { API_BASE_URL } from "./axios";
 
 const COMMUNITY_URL = "/boards";
 
@@ -144,10 +144,10 @@ const communityApi = {
       }),
 
   // 키워드 검색 API (GET /boards/search?keyword=...)
-  searchPosts: (keyword, category, page, size) =>
+  searchPosts: (keyword, category, sessionId, page, size) =>
     api
       .get(`${COMMUNITY_URL}/search`, {
-        params: { keyword, category, page, size },
+        params: { keyword, category, sessionId, page, size },
       })
       .then((response) => response.data)
       .catch((error) => {
@@ -156,16 +156,40 @@ const communityApi = {
       }),
 
   // 🔹 의미 기반 검색 API (GET /boards/search/searchSemantic?keyword=...)
-  searchSemanticPosts: (keyword, category, page, size, topOnly = false) =>
+  searchSemanticPosts: (keyword, category, sessionId, previousSearchLogId, page, size, topOnly = false) =>
     api
       .get(`${COMMUNITY_URL}/search/search-semantic`, {
-        params: { keyword, category, page, size, topOnly },
+        params: { keyword, category, sessionId, previousSearchLogId, page, size, topOnly },
       })
       .then((response) => response.data)
       .catch((error) => {
         console.error("의미 기반 검색 에러:", error);
         return { content: [], totalPages: 1 }; // AI 검색 에러 발생 시 빈 배열 반환
       }),
+
+  recordSearchClick: ({ searchLogId, postId, postTitle, clickedRank, resultType }) =>
+    {
+      const payload = JSON.stringify({
+        searchLogId,
+        postId,
+        postTitle,
+        clickedRank,
+        resultType,
+      });
+      const accessToken = localStorage.getItem("accessToken");
+
+      return fetch(`${API_BASE_URL}/boards/search/click`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: payload,
+        keepalive: true,
+      }).catch((error) => {
+        console.error("검색 클릭 로그 저장 에러:", error);
+      });
+    },
 
   //태그 검색 api
   searchByTag: (tag, page, size) =>

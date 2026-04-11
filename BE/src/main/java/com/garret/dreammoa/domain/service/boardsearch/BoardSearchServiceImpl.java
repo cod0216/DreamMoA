@@ -16,7 +16,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.garret.dreammoa.domain.document.BoardDocument;
 import com.garret.dreammoa.domain.dto.board.responsedto.PageResponseDto;
+import com.garret.dreammoa.domain.model.SearchLogEntity;
 import com.garret.dreammoa.domain.service.embedding.EmbeddingService;
+import com.garret.dreammoa.domain.service.search.SearchLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.elasticsearch.client.Request;
@@ -40,6 +42,7 @@ public class BoardSearchServiceImpl implements BoardSearchService {
 
     private final ElasticsearchClient elasticsearchClient;
     private final EmbeddingService embeddingService;  // 생성자 주입 (@RequiredArgsConstructor 사용)
+    private final SearchLogService searchLogService;
 
     @Value("${elastic.search.semantic.min-score:1.2}")
     private double semanticMinScore;
@@ -53,7 +56,7 @@ public class BoardSearchServiceImpl implements BoardSearchService {
      * @return 검색된 게시글 목록
      */
     @Override
-    public PageResponseDto<BoardDocument> searchBoards(String keyword, String category, int page, int size){
+    public PageResponseDto<BoardDocument> searchBoards(String keyword, String category, String sessionId, int page, int size){
         try {
             String minimumShouldMatch = resolveMinimumShouldMatch(keyword);
             // ✅ 검색 쿼리 생성 (multi_match 쿼리)
@@ -85,9 +88,17 @@ public class BoardSearchServiceImpl implements BoardSearchService {
 
             // ✅ 전체 페이지 수 계산
             int totalPages = (int) Math.ceil((double) totalElements / size);
+            SearchLogEntity searchLog = searchLogService.createSearchLog(
+                    keyword,
+                    category,
+                    sessionId,
+                    SearchLogEntity.SearchType.KEYWORD,
+                    (int) totalElements,
+                    null
+            );
 
             // ✅ PageResponse로 감싸서 반환
-            return new PageResponseDto<>(content, totalPages, totalElements);
+            return new PageResponseDto<>(content, totalPages, totalElements, searchLog.getId(), SearchLogEntity.SearchType.KEYWORD.name(), false);
         } catch (IOException e) {
             throw new RuntimeException("Elasticsearch 검색 중 오류 발생", e);
         }
@@ -163,7 +174,7 @@ public class BoardSearchServiceImpl implements BoardSearchService {
     }
 
     @Override
-    public PageResponseDto<BoardDocument> searchSemanticBoards(String keyword, String category, int page, int size, boolean topOnly) {
+    public PageResponseDto<BoardDocument> searchSemanticBoards(String keyword, String category, String sessionId, Long previousSearchLogId, int page, int size, boolean topOnly) {
         try {
 //            log.debug("searchSemanticBoards - received keyword: {}", keyword);
 
@@ -295,9 +306,17 @@ public class BoardSearchServiceImpl implements BoardSearchService {
                 totalPages = (int) Math.ceil((double) totalElements / size);
                 paginatedResults = allResults;
             }
+            SearchLogEntity searchLog = searchLogService.createSearchLog(
+                    keyword,
+                    category,
+                    sessionId,
+                    SearchLogEntity.SearchType.SEMANTIC,
+                    (int) totalElements,
+                    previousSearchLogId
+            );
 
             log.debug("searchSemanticBoards - returning {} results", paginatedResults.size());
-            return new PageResponseDto<>(paginatedResults, totalPages, totalElements);
+            return new PageResponseDto<>(paginatedResults, totalPages, totalElements, searchLog.getId(), SearchLogEntity.SearchType.SEMANTIC.name(), true);
         } catch (Exception e) {
             log.error("Elasticsearch 의미 기반 검색 중 오류 발생", e);
             throw new RuntimeException("Elasticsearch 의미 기반 검색 중 오류 발생", e);

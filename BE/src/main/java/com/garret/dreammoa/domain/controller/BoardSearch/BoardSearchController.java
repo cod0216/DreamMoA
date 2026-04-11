@@ -26,9 +26,10 @@ public class BoardSearchController {
     public ResponseEntity<PageResponseDto<BoardDocument>> searchBoards(
             @RequestParam String keyword,
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String sessionId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size){
-        PageResponseDto<BoardDocument> results = boardSearchService.searchBoards(keyword, category, page, size);
+        PageResponseDto<BoardDocument> results = boardSearchService.searchBoards(keyword, category, sessionId, page, size);
         return ResponseEntity.ok(results);
     }
 
@@ -42,10 +43,12 @@ public class BoardSearchController {
     public ResponseEntity<PageResponseDto<BoardDocument>> searchSemanticBoards(
             @RequestParam String keyword,
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String sessionId,
+            @RequestParam(required = false) Long previousSearchLogId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size,
             @RequestParam(defaultValue = "false") boolean topOnly) {
-        PageResponseDto<BoardDocument> results = boardSearchService.searchSemanticBoards(keyword, category, page, size, topOnly);
+        PageResponseDto<BoardDocument> results = boardSearchService.searchSemanticBoards(keyword, category, sessionId, previousSearchLogId, page, size, topOnly);
         return ResponseEntity.ok(results);
     }
 

@@ -4,7 +4,12 @@ import { communityListState } from "../../recoil/atoms/communityState";
 import CommunityItem from "./CommunityItem";
 import Pagination from "./Pagination";
 
-export default function CommunityList({ aiRecommended, aiPosts = [] }) {
+export default function CommunityList({
+  aiRecommended,
+  aiPosts = [],
+  keywordSearchLogId = null,
+  semanticSearchLogId = null,
+}) {
   const posts = useRecoilValue(communityListState);
   const [aiPage, setAiPage] = useState(1);
   const aiPageSize = 5;
@@ -16,8 +21,14 @@ export default function CommunityList({ aiRecommended, aiPosts = [] }) {
   return (
     <div className="space-y-4">
       {/* 일반 게시글 (AI 추천과 중복 X) */}
-      {posts.length > 0 && !aiRecommended && posts.map((post) => (
-        <CommunityItem key={post.id || post.postId} post={post} />
+      {posts.length > 0 && !aiRecommended && posts.map((post, index) => (
+        <CommunityItem
+          key={post.id || post.postId}
+          post={post}
+          searchLogId={keywordSearchLogId}
+          resultType="KEYWORD"
+          clickedRank={index + 1}
+        />
       ))}
 
       {/* 검색 결과 없음 문구 (AI 추천 전에 표시) */}
@@ -31,8 +42,14 @@ export default function CommunityList({ aiRecommended, aiPosts = [] }) {
       {aiRecommended && displayedAiPosts.length > 0 && (
         <div className="border border-yellow-200 p-4 rounded-lg bg-yellow-50">
           <p className="text-yellow-600 font-semibold text-lg mt-2 mb-2">✨ AI 기반 추천글</p>
-          {displayedAiPosts.map((post) => (
-            <CommunityItem key={post.id || post.postId} post={post} />
+          {displayedAiPosts.map((post, index) => (
+            <CommunityItem
+              key={post.id || post.postId}
+              post={post}
+              searchLogId={semanticSearchLogId}
+              resultType="SEMANTIC"
+              clickedRank={(aiPage - 1) * aiPageSize + index + 1}
+            />
           ))}
           {Math.ceil(aiPosts.length / aiPageSize) > 1 && (
             <Pagination 

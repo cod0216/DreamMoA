@@ -21,6 +21,8 @@ export const fetchPosts = async (
   searchQuery = "",
   setAiRecommended = null,
   setAiPosts = null, //AI 게시글 목록 상태 추가
+  setKeywordSearchLogId = null,
+  setSemanticSearchLogId = null,
   tagQuery = ""
 ) => {
   console.log(`${category} 게시판 데이터를 불러옵니다...`);
@@ -28,6 +30,14 @@ export const fetchPosts = async (
     let response;
     let posts = [];
     let totalPages = 1; // 기본값
+    const sessionKey = "communitySearchSessionId";
+    let searchSessionId = sessionStorage.getItem(sessionKey);
+    if (!searchSessionId) {
+      searchSessionId = window.crypto && window.crypto.randomUUID
+        ? window.crypto.randomUUID()
+        : `${Date.now()}-${Math.random()}`;
+      sessionStorage.setItem(sessionKey, searchSessionId);
+    }
 
     if (tagQuery.trim()) {
       // 태그 검색 실행
@@ -44,7 +54,7 @@ export const fetchPosts = async (
     } else if (searchQuery.trim()) {
       // 🔹 1. 기본 키워드 검색 실행
       console.log("🔍 키워드 검색 실행:", searchQuery);
-      response = await communityApi.searchPosts(searchQuery, category, currentPage - 1, 5);
+      response = await communityApi.searchPosts(searchQuery, category, searchSessionId, currentPage - 1, 5);
 
       console.log("✅ 키워드 검색 응답 데이터:", response);
 
@@ -52,6 +62,8 @@ export const fetchPosts = async (
         // 🔹 일반 검색 결과 업데이트 (AI 데이터 포함 X)
         posts = response.content;
         totalPages = response.totalPages || 1;
+        if (setKeywordSearchLogId) setKeywordSearchLogId(response.searchLogId ?? null);
+        if (setSemanticSearchLogId) setSemanticSearchLogId(null);
 
         console.log(`✅ 키워드 검색 결과 ${posts.length}개 발견`);
         if (setAiRecommended) setAiRecommended(false);
@@ -64,6 +76,8 @@ export const fetchPosts = async (
         const aiResponse = await communityApi.searchSemanticPosts(
           searchQuery,
           category,
+          searchSessionId,
+          response?.searchLogId ?? null,
           currentPage - 1,
           5,
           true
@@ -77,6 +91,8 @@ export const fetchPosts = async (
           totalPages = aiResponse.totalPages || 1;
 
           console.log(`🔥 AI 추천 검색 결과 ${aiPosts.length}개 발견`);
+          if (setKeywordSearchLogId) setKeywordSearchLogId(response?.searchLogId ?? null);
+          if (setSemanticSearchLogId) setSemanticSearchLogId(aiResponse?.searchLogId ?? null);
           if (setAiRecommended) setAiRecommended(true);
           if (setAiPosts) {
             setAiPosts(aiPosts); // AI 검색 결과는 여기만 업데이트
