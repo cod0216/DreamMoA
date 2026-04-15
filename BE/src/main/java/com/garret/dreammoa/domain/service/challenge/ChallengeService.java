@@ -190,7 +190,7 @@ public class ChallengeService {
     @Transactional
     public ResponseEntity<ChallengeResponse> enterChallenge(Long challengeId, ChallengeLoadRequest loadDate) throws OpenViduJavaClientException, OpenViduHttpException {
 
-        ChallengeEntity challenge = challengeRepository.findById(challengeId)
+        ChallengeEntity challenge = challengeRepository.findByIdForUpdate(challengeId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 챌린지를 찾을 수 없습니다."));
 
         UserEntity user = securityUtil.getCurrentUser();
@@ -694,6 +694,5 @@ public class ChallengeService {
         return dtos;
     }
 }
-
 
 
