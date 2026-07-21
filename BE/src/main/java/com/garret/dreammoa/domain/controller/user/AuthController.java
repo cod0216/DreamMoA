@@ -22,7 +22,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.data.redis.core.RedisTemplate;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -38,7 +37,6 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
-    private final RedisTemplate<String, String> redisTemplate;
     private final UserRepository userRepository;
     private final FileService fileService;
     private final UserService userService;
@@ -116,7 +114,7 @@ public class AuthController {
             logger.info("🕒 [마지막 로그인 업데이트] UserId: {}", userDetails.getId());
 
             // 7️⃣ 리프레시 토큰을 쿠키에 저장 (RT는 쿠키에만 담아 전송)
-            CookieUtil.addCookie(response, "refresh_token", refreshToken, (int) jwtUtil.getRefreshTokenExpirationTime());
+            CookieUtil.addHttpOnlyCookie(response, "refresh_token", refreshToken, (int) jwtUtil.getRefreshTokenExpirationTime());
             logger.info("🍪 [쿠키 저장] RefreshToken 저장 완료");
 
             // 8️⃣ 액세스 토큰은 응답 본문에만 담아 전송 (AT는 메시지 바디)
@@ -136,10 +134,10 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(HttpServletRequest request, HttpServletResponse response) {
         try {
-            String refreshToken = resolveTokenFromHeader(request);
+            String refreshToken = extractTokenFromCookie(request, "refresh_token");
             if (refreshToken == null) {
                 return ResponseEntity.status(HttpServletResponse.SC_UNAUTHORIZED)
-                        .body(Map.of("message", "Authorization 헤더에 Refresh Token이 없습니다."));
+                        .body(Map.of("message", "refresh_token 쿠키가 없습니다."));
             }
 
             // 1) 서명/만료 검증
@@ -174,12 +172,10 @@ public class AuthController {
                     userId, refreshToken, email, name, nickname, role
             );
 
-            // 6) 응답
-            // 현재 구조처럼 바디로 내려도 되고, 원하시면 newRefreshToken을 Authorization 헤더로 내려도 됩니다.
-            return ResponseEntity.ok(Map.of(
-                    "accessToken", newAccessToken,
-                    "refreshToken", newRefreshToken
-            ));
+            // 6) 새 RT는 로그인 때와 동일하게 HttpOnly 쿠키로만 전달 (바디에 노출하지 않음)
+            CookieUtil.addHttpOnlyCookie(response, "refresh_token", newRefreshToken, (int) jwtUtil.getRefreshTokenExpirationTime());
+
+            return ResponseEntity.ok(Map.of("accessToken", newAccessToken));
 
         } catch (IllegalStateException e) {
             // replay 감지 등
@@ -192,29 +188,17 @@ public class AuthController {
     }
 
 
-    /**
-     * Authorization 헤더에서 Bearer 토큰을 추출하는 메서드
-     */
-    private String resolveTokenFromHeader(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
-        }
-        return null;
-    }
-
-
-
-
     @PostMapping("/user-logout")
     public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
         // 리프레시 토큰 쿠키에서 추출
         String refreshToken = extractTokenFromCookie(request, "refresh_token");
 
         if (refreshToken != null) {
-            String email = jwtUtil.getEmailFromToken(refreshToken);
-            // Redis에서 리프레시 토큰 제거
-            redisTemplate.delete(email); // Redis에서 해당 토큰 제거
+            Long userId = jwtUtil.getUserIdFromToken(refreshToken);
+            if (userId != null) {
+                // Redis에서 리프레시 토큰 제거 (저장 키와 동일한 형식으로 삭제)
+                jwtUtil.deleteRefreshToken(userId);
+            }
 
             // 쿠키 삭제
             CookieUtil.deleteCookie(request, response, "access_token");

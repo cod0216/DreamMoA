@@ -236,6 +236,10 @@ public class JwtUtil {
         return false;
     }
 
+    public void deleteRefreshToken(Long userId) {
+        redisTemplate.delete(rtKey(userId));
+    }
+
     public boolean isRefreshTokenValid(Long userId, String refreshToken) {
         // ✅ 저장 키도 동일하게 변경
         String storedToken = redisTemplate.opsForValue().get(rtKey(userId));
