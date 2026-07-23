@@ -9,6 +9,7 @@ import com.garret.dreammoa.domain.repository.SearchClickLogRepository;
 import com.garret.dreammoa.domain.repository.SearchLogRepository;
 import com.garret.dreammoa.domain.repository.SearchSynonymCandidateRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -39,8 +41,28 @@ public class SearchSynonymCandidateService {
     private final SearchSynonymCandidateRepository searchSynonymCandidateRepository;
     private final BoardRepository boardRepository;
 
+    @Value("${search.synonym-candidate.reformulation-window-minutes:10}")
+    private long reformulationWindowMinutes;
+
     @Transactional
     public int generateCandidates(LocalDateTime since) throws IOException {
+        Set<Set<String>> existingSynonymGroups = loadExistingSynonymGroups();
+        Map<CandidateKey, CandidateAggregate> aggregates = new LinkedHashMap<>();
+
+        collectClickEvidence(since, existingSynonymGroups, aggregates);
+        collectReformulationEvidence(since, existingSynonymGroups, aggregates);
+
+        return saveQualifiedCandidates(aggregates);
+    }
+
+    /**
+     * 시그널 1: 키워드 검색 0건 → 의미 기반 검색 → 게시글 클릭
+     */
+    private void collectClickEvidence(
+            LocalDateTime since,
+            Set<Set<String>> existingSynonymGroups,
+            Map<CandidateKey, CandidateAggregate> aggregates
+    ) {
         List<SearchClickLogEntity> semanticClicks = searchClickLogRepository.findSemanticClicksSince(
                 since,
                 SearchLogEntity.SearchType.SEMANTIC,
@@ -53,9 +75,6 @@ public class SearchSynonymCandidateService {
                 .collect(Collectors.toSet());
         Map<Long, SearchLogEntity> previousLogs = searchLogRepository.findAllByIdIn(previousIds).stream()
                 .collect(Collectors.toMap(SearchLogEntity::getId, log -> log));
-
-        Set<Set<String>> existingSynonymGroups = loadExistingSynonymGroups();
-        Map<CandidateKey, CandidateAggregate> aggregates = new LinkedHashMap<>();
 
         for (SearchClickLogEntity click : semanticClicks) {
             SearchLogEntity semanticLog = click.getSearchLog();
@@ -80,14 +99,75 @@ public class SearchSynonymCandidateService {
                     continue;
                 }
 
-                CandidateKey key = new CandidateKey(sourceTerm, targetTerm, keywordLog.getCategory());
-                CandidateAggregate aggregate = aggregates.computeIfAbsent(key, ignored -> new CandidateAggregate());
-                aggregate.evidenceCount++;
-                aggregate.userOrSessionKeys.add(buildActorKey(keywordLog));
-                aggregate.sampleTitles.add(board.getTitle());
+                addEvidence(aggregates, sourceTerm, targetTerm, keywordLog.getCategory(),
+                        buildActorKey(keywordLog), board.getTitle());
             }
         }
+    }
 
+    /**
+     * 시그널 2: 같은 세션에서 검색어 A로 0건 → 검색어 B로 재검색해서 결과를 찾음
+     */
+    private void collectReformulationEvidence(
+            LocalDateTime since,
+            Set<Set<String>> existingSynonymGroups,
+            Map<CandidateKey, CandidateAggregate> aggregates
+    ) {
+        List<SearchLogEntity> logs = searchLogRepository
+                .findBySessionIdIsNotNullAndCreatedAtAfterOrderBySessionIdAscCreatedAtAsc(since);
+
+        Map<String, List<SearchLogEntity>> bySession = new LinkedHashMap<>();
+        for (SearchLogEntity log : logs) {
+            bySession.computeIfAbsent(log.getSessionId(), ignored -> new ArrayList<>()).add(log);
+        }
+
+        for (List<SearchLogEntity> sessionLogs : bySession.values()) {
+            for (int i = 0; i < sessionLogs.size() - 1; i++) {
+                SearchLogEntity failed = sessionLogs.get(i);
+                SearchLogEntity retried = sessionLogs.get(i + 1);
+
+                if (failed.getResultCount() > 0 || retried.getResultCount() <= 0) {
+                    continue;
+                }
+
+                String sourceTerm = failed.getNormalizedQuery();
+                String targetTerm = retried.getNormalizedQuery();
+                if (sourceTerm == null || targetTerm == null
+                        || sourceTerm.isBlank() || targetTerm.isBlank()
+                        || sourceTerm.contains(" ") || targetTerm.contains(" ")
+                        || sourceTerm.equals(targetTerm)) {
+                    continue;
+                }
+
+                if (failed.getCreatedAt() == null || retried.getCreatedAt() == null
+                        || Duration.between(failed.getCreatedAt(), retried.getCreatedAt())
+                                .compareTo(Duration.ofMinutes(reformulationWindowMinutes)) > 0) {
+                    continue;
+                }
+
+                if (alreadyGrouped(sourceTerm, targetTerm, existingSynonymGroups)) {
+                    continue;
+                }
+
+                addEvidence(aggregates, sourceTerm, targetTerm, failed.getCategory(),
+                        buildActorKey(failed), "\"" + sourceTerm + "\" → \"" + targetTerm + "\"");
+            }
+        }
+    }
+
+    private void addEvidence(
+            Map<CandidateKey, CandidateAggregate> aggregates,
+            String sourceTerm, String targetTerm, String category,
+            String actorKey, String sampleText
+    ) {
+        CandidateKey key = new CandidateKey(sourceTerm, targetTerm, category);
+        CandidateAggregate aggregate = aggregates.computeIfAbsent(key, ignored -> new CandidateAggregate());
+        aggregate.evidenceCount++;
+        aggregate.userOrSessionKeys.add(actorKey);
+        aggregate.sampleTitles.add(sampleText);
+    }
+
+    private int saveQualifiedCandidates(Map<CandidateKey, CandidateAggregate> aggregates) {
         int savedCount = 0;
         for (Map.Entry<CandidateKey, CandidateAggregate> entry : aggregates.entrySet()) {
             CandidateKey key = entry.getKey();
